@@ -33,7 +33,9 @@ WebImageView::WebImageView()
      * This is used to fix the ListView Control ReUse problem, sometimes if you flip fingers fast,
      * this control will show mistaken images.
      */
-    connect(this,SIGNAL(creationCompleted()),this,SLOT(resetControl()));
+     // will cause default asset image blank.
+    // connect(this,SIGNAL(creationCompleted()),this,SLOT(resetControl()));
+    
     
     /* 
      * Initialize network cache
