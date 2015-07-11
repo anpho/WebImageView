@@ -2,7 +2,7 @@
  * This file is forked from https://github.com/RodgerLeblanc/WebImageView , the original repo is too big so I created
  * this tiny repo to save mine.
  * Please keep this comment paragraph.
- * 
+ *
  * Merrick Zhang ( anphorea@gmail.com ) 2015.5.27
  */
 #include "WebImageView.h"
@@ -20,10 +20,10 @@ QNetworkDiskCache * WebImageView::mNetworkDiskCache = new QNetworkDiskCache();
 
 WebImageView::WebImageView()
 {
-    /* 
+    /*
      * Creates a folder, could be used when you want to get an absolute path of the image.
-     * @author Merrick Zhang 
-    */
+     * @author Merrick Zhang
+     */
     QFileInfo imageDir(QDir::homePath() + "/images/");
     if (!imageDir.exists()) {
         QDir().mkdir(imageDir.path());
@@ -33,11 +33,8 @@ WebImageView::WebImageView()
      * This is used to fix the ListView Control ReUse problem, sometimes if you flip fingers fast,
      * this control will show mistaken images.
      */
-     // will cause default asset image blank.
-    // connect(this,SIGNAL(creationCompleted()),this,SLOT(resetControl()));
-    
-    
-    /* 
+    //connect(this,SIGNAL(creationCompleted()),this,SLOT(resetControl()));
+    /*
      * Initialize network cache
      * use QNetworksDiskCache to automatically cache images.
      */
@@ -56,12 +53,13 @@ const QUrl& WebImageView::url() const
 
 void WebImageView::setUrl(QUrl url)
 {
-	/*
-	 * bypass null url values.
-	 */
+    /*
+     * bypass null url values.
+     */
     if (url.scheme() == "") {
         return;
     }
+
     /*
      * deal with "asset://" and relative image path
      */
@@ -77,7 +75,6 @@ void WebImageView::setUrl(QUrl url)
     // Reset the image
     resetImage();
 
-
     // Create request
     QNetworkRequest request;
     request.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache);
@@ -86,12 +83,13 @@ void WebImageView::setUrl(QUrl url)
     // Create reply
     QNetworkReply * reply = mNetManager->get(request);
 
+//    QTimer().singleShot(15000,this,SLOT(cancelDownload(reply)));
 
-    // Connect to signals
+// Connect to signals
     QObject::connect(reply, SIGNAL(finished()), this, SLOT(imageLoaded()));
     QObject::connect(reply, SIGNAL(downloadProgress(qint64, qint64)), this,
             SLOT(dowloadProgressed(qint64,qint64)));
-
+    QObject::connect(this, SIGNAL(cancel()), reply, SLOT(deleteLater()));
     emit urlChanged();
 }
 /*
@@ -109,7 +107,6 @@ QString WebImageView::md5(const QString key)
     return md5;
 }
 
-
 double WebImageView::loading() const
 {
     return mLoading;
@@ -117,11 +114,11 @@ double WebImageView::loading() const
 
 void WebImageView::imageLoaded()
 {
-    
+
     // Get reply
     QNetworkReply * reply = qobject_cast<QNetworkReply*>(sender());
     QVariant fromCache = reply->attribute(QNetworkRequest::SourceIsFromCacheAttribute);
-    qDebug() << "page from cache?" << fromCache.toBool();
+//    qDebug() << "page from cache?" << fromCache.toBool();
     if (reply->error() == QNetworkReply::NoError) {
         if (isARedirectedUrl(reply)) {
             setURLToRedirectedUrl(reply);
@@ -129,14 +126,14 @@ void WebImageView::imageLoaded()
         } else {
             imageData = reply->readAll();
             /*
-             * since blackberry cascades's Image class doesn't provide any abilities to 
+             * since blackberry cascades's Image class doesn't provide any abilities to
              * extract data from it, I'd like to keep imageData in Memory for future use.
              * this is why I use global variant instead of local one.
              */
             setImage(Image(imageData));
         }
     }
-	emit loadComplete();
+    emit loadComplete();
     // Memory management
     reply->deleteLater();
 }
@@ -158,9 +155,9 @@ void WebImageView::setURLToRedirectedUrl(QNetworkReply *reply)
 
 void WebImageView::clearCache()
 {
-	/*
-	 * This is a INVOCABLE function so you can call it from QML.
-	 */
+    /*
+     * This is a INVOCABLE function so you can call it from QML.
+     */
     mNetworkDiskCache->clear();
 
     QDir imageDir(QDir::homePath() + "/images");
@@ -172,23 +169,26 @@ void WebImageView::clearCache()
 
 QString WebImageView::getCachedPath()
 {
-	/*
-	 * This function will save the image to /images/ folder and return its path.
-	 * very useful for invoking system picture viewer.
-	 */
+    /*
+     * This function will save the image to /images/ folder and return its path.
+     * very useful for invoking system picture viewer.
+     */
     if (imageData.isEmpty()) {
-        qDebug()<<"imageData is empty.";
+        qDebug() << "imageData is empty.";
         return "";
     } else {
-        QString fileName = md5(mUrl.toString());
-        QString filepath = QDir::homePath() + "/images/" + fileName + ".jpg"; //in my app this can only be jpg. you'd change it from mUrl.
+        QString str_url = mUrl.toString();
+        QString fileName = md5(str_url);
+        int extdot = str_url.lastIndexOf(".");
+        QString ext = str_url.mid(extdot, str_url.length());
+        QString filepath = QDir::homePath() + "/images/" + fileName + ext; //in my app this can only be jpg. you'd change it from mUrl.
         QFile imageFile(filepath);
         if (imageFile.open(QIODevice::WriteOnly)) {
             imageFile.write(imageData);
             imageFile.close();
             return "file://" + filepath;
         } else {
-            qDebug()<<"Can't open file to write.";
+            qDebug() << "Can't open file to write.";
             return "";
         }
     }
@@ -202,11 +202,12 @@ void WebImageView::dowloadProgressed(qint64 bytes, qint64 total)
 
 void WebImageView::resetControl()
 {
-	// reset everything to default.
+    emit cancel();
+    // reset everything to default.
     resetImage();
     resetImageSource();
-    mUrl=NULL;
-    mLoading =0;
+    mUrl = NULL;
+    mLoading = 0;
     imageData.clear();
 
 }
